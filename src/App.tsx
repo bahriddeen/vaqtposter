@@ -2,17 +2,24 @@ import { useRef, useState } from 'react';
 import { Download, ImagePlus, SlidersHorizontal, Sparkles, Upload, ChevronDown } from 'lucide-react';
 import { BackgroundArt, backgrounds } from './backgrounds';
 import { Poster } from './Poster';
-import type { PosterConfig } from './types';
+import type { PosterConfig, PosterMode } from './types';
 
-const initial: PosterConfig = { mosqueName:'Uch tegirmon jome masjidi', title:'Namoz Vaqtlari', telegram:'@uchtegirmonmasjidi', prayers:[
-  {name:'Bomdod',azon:'04:20',takbir:'04:40'}, {name:'Peshin',azon:'12:35',takbir:'12:50'},
-  {name:'Asr',azon:'17:15',takbir:'17:30'}, {name:'Shom',azon:'19:45',takbir:'19:50'}, {name:'Xufton',azon:'21:10',takbir:'21:25'}
-], background:backgrounds[0], liquidGlass:true, overlay:22, backgroundPosition:'center', backgroundZoom:100, brightness:100 };
+const initial: PosterConfig = {
+  mode:'namoz',
+  mosqueName:'Uch tegirmon jome masjidi', title:'Namoz Vaqtlari', telegram:'@uchtegirmonmasjidi',
+  prayers:[
+    {name:'Bomdod',azon:'04:20',takbir:'04:40'}, {name:'Peshin',azon:'12:35',takbir:'12:50'},
+    {name:'Asr',azon:'17:15',takbir:'17:30'}, {name:'Shom',azon:'19:45',takbir:'19:50'}, {name:'Xufton',azon:'21:10',takbir:'21:25'}
+  ],
+  background:backgrounds[0], liquidGlass:true, overlay:22, backgroundPosition:'center', backgroundZoom:100, brightness:100,
+  quoteText:'', author:'', additionalInfo:''
+};
 
 const slug = (s:string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 
 export function App(){
   const [config,setConfig]=useState(initial); const [advanced,setAdvanced]=useState(false); const svgRef=useRef<SVGSVGElement>(null);
+const setMode=(mode:PosterMode)=>setConfig(c=>({...c,mode,title:mode==='namoz'?'Namoz Vaqtlari':'Iqtibos'}));
   const update=<K extends keyof PosterConfig>(key:K,value:PosterConfig[K])=>setConfig(c=>({...c,[key]:value}));
   const editPrayer=(i:number,key:'azon'|'takbir',value:string)=>update('prayers',config.prayers.map((p,n)=>n===i?{...p,[key]:value}:p));
   const svgText=()=>{const node=svgRef.current!.cloneNode(true) as SVGSVGElement;node.setAttribute('width','1080');node.setAttribute('height','1440');return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(node)};
@@ -21,7 +28,7 @@ export function App(){
   const downloadPng=()=>{const img=new Image();const url=URL.createObjectURL(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}));img.onload=()=>{const c=document.createElement('canvas');c.width=1080;c.height=1440;c.getContext('2d')!.drawImage(img,0,0);c.toBlob(b=>b&&save(b,'png'),'image/png',1);URL.revokeObjectURL(url)};img.src=url};
   const upload=(file?:File)=>{if(!file)return;const reader=new FileReader();reader.onload=()=>update('background',{id:'upload',name:'Shaxsiy',light:false,kind:'upload',source:String(reader.result)});reader.readAsDataURL(file)};
   return <main>
-    <header className="topbar"><div className="brand"><span className="brandmark">◒</span><span>Vaqt<span>Poster</span></span></div><p>Namoz jadvalini bir daqiqada tayyorlang</p><span className="saved">● &nbsp; Barcha o‘zgarishlar saqlanadi</span></header>
+    <header className="topbar"><div className="brand"><span className="brandmark">◒</span><span>Vaqt<span>Poster</span></span></div><div className="mode-switcher"><button className={config.mode==='namoz'?'active':''} onClick={()=>setMode('namoz')}>Namoz vaqtlari</button><button className={config.mode==='iqtibos'?'active':''} onClick={()=>setMode('iqtibos')}>Iqtibos</button></div><p>{config.mode==='namoz'?'Namoz jadvalini bir daqiqada tayyorlang':'Iqtiboslar uchun postlar tayyorlang'}</p><span className="saved">● &nbsp; Barcha o‘zgarishlar saqlanadi</span></header>
     <div className="workspace">
       <section className="controls">
         <div className="intro"><div><span className="eyebrow">POSTER SOZLAMALARI</span><h1>Namoz vaqtlari</h1></div><div className="step">1 <span>/ 3</span></div></div>

@@ -3,7 +3,7 @@ import type { PosterConfig } from './types';
 
 const uzMonths = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const hijriMonths = ['Muharram','Safar','Rabiul-avval','Rabiul-oxir','Jumodul-avval','Jumodul-oxir','Rajab','Sha’bon','Ramazon','Shavvol','Zulqa’da','Zulhijja'];
-function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
+function wrapText(text: string, maxWidth: number, fontSize: number, maxLines = 6): string[] {
   const avgCharWidth = fontSize * 0.58;
   const maxChars = Math.floor(maxWidth / avgCharWidth);
   const words = text.split(' ');
@@ -15,7 +15,7 @@ function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
     else { current = test; }
   }
   if (current) lines.push(current);
-  return lines.length ? lines : [''];
+  return lines.length ? lines.slice(0, maxLines) : [''];
 }
 function posterDates() {
   const today = new Date();
@@ -33,7 +33,10 @@ export function Poster({ config, svgRef }: { config: PosterConfig; svgRef?: Reac
   const muted = darkText ? '#44514c' : '#dbe9e4';
   const panel = darkText ? '#ffffff' : '#0a1c19';
   const dates = posterDates();
-  return <svg ref={svgRef} viewBox="0 0 1080 1440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Namoz vaqtlari posteri" style={{fontFamily:'Inter, Arial, sans-serif'}}>
+  const quoteLines = wrapText(config.quoteText, 900, 36);
+  const quoteLineCount = Math.min(quoteLines.length, 6);
+  const quoteDividerY = 530 + quoteLineCount * 52 + 40;
+  return <svg ref={svgRef} viewBox="0 0 1080 1440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label={config.mode==='namoz'?'Namoz vaqtlari posteri':'Iqtibos posteri'} style={{fontFamily:'Inter, Arial, sans-serif'}}>
     <defs>
       <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="28" stdDeviation="34" floodColor="#001a13" floodOpacity=".32"/></filter>
       <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="48"/></filter>
@@ -49,7 +52,7 @@ export function Poster({ config, svgRef }: { config: PosterConfig; svgRef?: Reac
     <g fill={ink} textAnchor="middle">
       <text x="540" y="168" fontSize="76" fontWeight="750" letterSpacing="-2">{config.title}</text>
       <path d="M420 210H660" stroke={ink} strokeOpacity=".45" strokeWidth="2"/>
-      <text x="540" y="270" fontSize="31" fontWeight="500" opacity=".9">{config.mosqueName}</text>
+      {config.mode==='namoz' && <text x="540" y="270" fontSize="31" fontWeight="500" opacity=".9">{config.mosqueName}</text>}
     </g>
     <g filter="url(#shadow)">
       <rect x="90" y="320" width="900" height="900" rx="58" fill={liquidGlass?'url(#glassSurface)':panel} fillOpacity={liquidGlass?'1':darkText?'.9':'.84'} stroke={liquidGlass?'url(#glassEdge)':'#fff'} strokeOpacity={liquidGlass?'1':'.14'} strokeWidth={liquidGlass?'3':'2'}/>
@@ -71,10 +74,11 @@ export function Poster({ config, svgRef }: { config: PosterConfig; svgRef?: Reac
       </g>})}
     </g>:<g fill={ink}>
       <text x="540" y="450" fontSize="72" fontWeight="200" fill={muted} textAnchor="middle" opacity=".6">"</text>
-      {wrapText(config.quoteText,900,44).map((line,i)=><text key={i} x="540" y={530+i*52} fontSize="36" fontWeight="550" textAnchor="middle" letterSpacing="-.3" fill={ink}>{line}</text>)}
-      <line x1="350" y1={780} x2="730" y2={780} stroke={muted} strokeOpacity=".4" strokeWidth="1"/>
-      <text x="540" y="830" fontSize="27" fontWeight="600" textAnchor="middle" fill={ink}>— {config.author||'Muallif'}</text>
-      {config.additionalInfo?<text x="540" y="870" fontSize="19" fontWeight="400" textAnchor="middle" fill={muted}>{config.additionalInfo}</text>:null}
+      {quoteLines.map((line,i)=><text key={i} x="540" y={530+i*52} fontSize="36" fontWeight="550" textAnchor="middle" letterSpacing="-.3" fill={ink}>{line}</text>)}
+      <text x="540" y={quoteDividerY - 20} fontSize="72" fontWeight="200" fill={muted} textAnchor="middle" opacity=".6">"</text>
+      <line x1="350" y1={quoteDividerY} x2="730" y2={quoteDividerY} stroke={muted} strokeOpacity=".4" strokeWidth="1"/>
+      <text x="540" y={quoteDividerY + 50} fontSize="27" fontWeight="600" textAnchor="middle" fill={ink}>— {config.author||'Muallif'}</text>
+      {config.additionalInfo?<text x="540" y={quoteDividerY + 90} fontSize="19" fontWeight="400" textAnchor="middle" fill={muted}>{config.additionalInfo}</text>:null}
     </g>}
     <g transform="translate(133 1337)" fill={ink} opacity=".9">
       <g transform="translate(-22 -22) scale(.9167)">

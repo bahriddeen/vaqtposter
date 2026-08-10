@@ -7,6 +7,15 @@ export const backgrounds: Background[] = [
   { id: 'azure', name: 'Moviy', light: false, kind: 'azure' },
   { id: 'sand', name: 'Naqsh', light: true, kind: 'sand' },
   { id: 'light', name: 'Yorug‘', light: true, kind: 'light' },
+  { id: 'bg11', name: 'Rasm 1', light: false, kind: 'upload', source: '/bg/11.jpg' },
+  { id: 'bg12', name: 'Rasm 2', light: false, kind: 'upload', source: '/bg/12.jpg' },
+  { id: 'bg13', name: 'Rasm 3', light: false, kind: 'upload', source: '/bg/13.jpg' },
+  { id: 'bg14', name: 'Rasm 4', light: false, kind: 'upload', source: '/bg/14.jpg' },
+  { id: 'bg15', name: 'Rasm 5', light: false, kind: 'upload', source: '/bg/15.jpg' },
+  { id: 'bg16', name: 'Rasm 6', light: false, kind: 'upload', source: '/bg/16.jpg' },
+  { id: 'bg17', name: 'Rasm 7', light: false, kind: 'upload', source: '/bg/17.jpg' },
+  { id: 'bg18', name: 'Rasm 8', light: false, kind: 'upload', source: '/bg/18.jpg' },
+  { id: 'bg19', name: 'Rasm 9', light: false, kind: 'upload', source: '/bg/19.jpg' },
 ];
 
 function MosqueScene({ color, opacity = .22 }: { color: string; opacity?: number }) {

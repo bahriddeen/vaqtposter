@@ -3,6 +3,20 @@ import type { PosterConfig } from './types';
 
 const uzMonths = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const hijriMonths = ['Muharram','Safar','Rabiul-avval','Rabiul-oxir','Jumodul-avval','Jumodul-oxir','Rajab','Sha’bon','Ramazon','Shavvol','Zulqa’da','Zulhijja'];
+function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
+  const avgCharWidth = fontSize * 0.58;
+  const maxChars = Math.floor(maxWidth / avgCharWidth);
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? current + ' ' + word : word;
+    if (test.length > maxChars && current) { lines.push(current); current = word; }
+    else { current = test; }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [''];
+}
 function posterDates() {
   const today = new Date();
   const gregorian = `${today.getDate()} ${uzMonths[today.getMonth()]} ${today.getFullYear()}`;
@@ -45,17 +59,23 @@ export function Poster({ config, svgRef }: { config: PosterConfig; svgRef?: Reac
         <path d="M94 1035v100c0 42 32 72 75 72h172" fill="none" stroke="#a6f8dd" strokeOpacity=".24" strokeWidth="3" strokeLinecap="round"/>
       </>}
     </g>
-    <g fill={ink}>
+    {config.mode==='namoz'?<g fill={ink}>
       <text x="480" y="385" fontSize="22" fontWeight="700" letterSpacing="4" fill={muted} textAnchor="middle">AZON</text>
       <text x="790" y="385" fontSize="22" fontWeight="700" letterSpacing="4" fill={muted} textAnchor="middle">TAKBIR</text>
       {prayers.map((p,i) => { const y=455+i*151; return <g key={p.name}>
-        {i>0 && <line x1="145" y1={y-82} x2="935" y2={y-82} stroke={ink} strokeOpacity={liquidGlass?'.16':'.12'}/>} 
+        {i>0 && <line x1="145" y1={y-82} x2="935" y2={y-82} stroke={ink} strokeOpacity={liquidGlass?'.16':'.12'}/>}
         <circle cx="166" cy={y-8} r="5" fill={darkText?'#238269':'#75ddbd'}/>
         <text x="195" y={y} fontSize="35" fontWeight="650">{p.name}</text>
         <text x="480" y={y+6} fontSize="54" fontWeight="750" letterSpacing="1" textAnchor="middle">{p.azon}</text>
         <text x="790" y={y+6} fontSize="54" fontWeight="750" letterSpacing="1" textAnchor="middle">{p.takbir}</text>
       </g>})}
-    </g>
+    </g>:<g fill={ink}>
+      <text x="540" y="450" fontSize="72" fontWeight="200" fill={muted} textAnchor="middle" opacity=".6">"</text>
+      {wrapText(config.quoteText,900,44).map((line,i)=><text key={i} x="540" y={530+i*52} fontSize="36" fontWeight="550" textAnchor="middle" letterSpacing="-.3" fill={ink}>{line}</text>)}
+      <line x1="350" y1={780} x2="730" y2={780} stroke={muted} strokeOpacity=".4" strokeWidth="1"/>
+      <text x="540" y="830" fontSize="27" fontWeight="600" textAnchor="middle" fill={ink}>— {config.author||'Muallif'}</text>
+      {config.additionalInfo?<text x="540" y="870" fontSize="19" fontWeight="400" textAnchor="middle" fill={muted}>{config.additionalInfo}</text>:null}
+    </g>}
     <g transform="translate(133 1337)" fill={ink} opacity=".9">
       <g transform="translate(-22 -22) scale(.9167)">
         <path fill="#29b6f6" d="M24 4A20 20 0 1 0 24 44A20 20 0 1 0 24 4Z"/>

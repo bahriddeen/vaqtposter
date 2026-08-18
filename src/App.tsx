@@ -21,18 +21,25 @@ const loadConfig = (): PosterConfig => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return initial;
     const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return initial;
+    const str = (v: any, d: string) => typeof v === 'string' ? v : d;
     const prayers = Array.isArray(saved.prayers) && saved.prayers.length === 5 && saved.prayers.every((p:any)=>p && typeof p.name==='string' && typeof p.azon==='string' && typeof p.takbir==='string') ? saved.prayers : initial.prayers;
-    const background = saved.background && typeof saved.background.id==='string' && (saved.background.source || backgrounds.some(b=>b.id===saved.background.id)) ? saved.background : initial.background;
-    return { ...initial, ...saved, prayers, background };
+    const background = saved.background && typeof saved.background.id==='string' && (typeof saved.background.source==='string' || backgrounds.some(b=>b.id===saved.background.id)) ? saved.background : initial.background;
+    return { ...initial, ...saved,
+      mosqueName: str(saved.mosqueName, initial.mosqueName), title: str(saved.title, initial.title), telegram: str(saved.telegram, initial.telegram),
+      quoteText: str(saved.quoteText, initial.quoteText), author: str(saved.author, initial.author), additionalInfo: str(saved.additionalInfo, initial.additionalInfo),
+      prayers, background };
   } catch { return initial; }
 };
 const saveConfig = (config: PosterConfig) => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); }
-  catch {
-    try {
-      const stripped = config.background.source?.startsWith('data:') ? { ...config, background: { ...config.background, source: undefined } } : config;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-    } catch {}
+  catch (e) {
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      try {
+        const stripped = config.background.source?.startsWith('data:') ? { ...config, background: { ...config.background, source: undefined } } : config;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
+      } catch {}
+    }
   }
 };
 

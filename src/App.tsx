@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Download, ImagePlus, SlidersHorizontal, Sparkles, Upload, ChevronDown, EyeOff, Search, Loader2 } from 'lucide-react';
 import { BackgroundArt, backgrounds } from './backgrounds';
 import { Poster } from './Poster';
@@ -15,10 +15,32 @@ const initial: PosterConfig = {
   quoteText:'', author:'', additionalInfo:''
 };
 
+const STORAGE_KEY = 'vaqtposter.config.v1';
+const loadConfig = (): PosterConfig => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return initial;
+    const saved = JSON.parse(raw);
+    const prayers = Array.isArray(saved.prayers) && saved.prayers.length === 5 && saved.prayers.every((p:any)=>p && typeof p.name==='string' && typeof p.azon==='string' && typeof p.takbir==='string') ? saved.prayers : initial.prayers;
+    const background = saved.background && typeof saved.background.id==='string' && (saved.background.source || backgrounds.some(b=>b.id===saved.background.id)) ? saved.background : initial.background;
+    return { ...initial, ...saved, prayers, background };
+  } catch { return initial; }
+};
+const saveConfig = (config: PosterConfig) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); }
+  catch {
+    try {
+      const stripped = config.background.source?.startsWith('data:') ? { ...config, background: { ...config.background, source: undefined } } : config;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
+    } catch {}
+  }
+};
+
 const slug = (s:string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 
 export function App(){
-  const [config,setConfig]=useState(initial); const [advanced,setAdvanced]=useState(false); const svgRef=useRef<SVGSVGElement>(null);
+  const [config,setConfig]=useState(loadConfig); const [advanced,setAdvanced]=useState(false); const svgRef=useRef<SVGSVGElement>(null);
+  useEffect(()=>{saveConfig(config)},[config]);
 const setMode=(mode:PosterMode)=>setConfig(c=>({...c,mode,title:mode==='namoz'?'Namoz Vaqtlari':'Iqtibos'}));
   const update=<K extends keyof PosterConfig>(key:K,value:PosterConfig[K])=>setConfig(c=>({...c,[key]:value}));
   const editPrayer=(i:number,key:'azon'|'takbir',value:string)=>update('prayers',config.prayers.map((p,n)=>n===i?{...p,[key]:value}:p));

@@ -32,15 +32,8 @@ const loadConfig = (): PosterConfig => {
   } catch { return initial; }
 };
 const saveConfig = (config: PosterConfig) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); }
-  catch (e) {
-    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-      try {
-        const stripped = config.background.source?.startsWith('data:') ? { ...config, background: { ...config.background, source: undefined } } : config;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-      } catch {}
-    }
-  }
+  const toSave = config.background.source?.startsWith('data:') ? { ...config, background: { ...config.background, source: undefined } } : config;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave)); } catch {}
 };
 
 const slug = (s:string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');

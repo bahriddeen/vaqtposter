@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Download, ImagePlus, SlidersHorizontal, Sparkles, Upload, ChevronDown, EyeOff, Search, Loader2 } from 'lucide-react';
+import { Download, ImagePlus, SlidersHorizontal, Sparkles, Upload, ChevronDown, EyeOff, Search, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { BackgroundArt, backgrounds } from './backgrounds';
 import { Poster } from './Poster';
 import type { PosterConfig, PosterMode } from './types';
@@ -45,9 +45,62 @@ const setMode=(mode:PosterMode)=>setConfig(c=>({...c,mode,title:mode==='namoz'?'
   const update=<K extends keyof PosterConfig>(key:K,value:PosterConfig[K])=>setConfig(c=>({...c,[key]:value}));
   const editPrayer=(i:number,key:'azon'|'takbir',value:string)=>update('prayers',config.prayers.map((p,n)=>n===i?{...p,[key]:value}:p));
   const svgText=()=>{const node=svgRef.current!.cloneNode(true) as SVGSVGElement;node.setAttribute('width','1080');node.setAttribute('height','1440');return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(node)};
-  const save=(blob:Blob,ext:string)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);const fname=config.mode==='namoz'?`namoz-vaqtlari-${slug(config.mosqueName)||'masjid'}.${ext}`:`iqtibos-${slug(config.author)||'muallif'}.${ext}`;a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-  const downloadSvg=()=>save(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}),'svg');
-  const downloadPng=()=>{const c=document.createElement('canvas');c.width=1080;c.height=1440;const ctx=c.getContext('2d')!;const drawOverlay=()=>{const node=svgRef.current!.cloneNode(true) as SVGSVGElement;const bgImg=node.querySelector('image');if(bgImg)bgImg.remove();node.setAttribute('width','1080');node.setAttribute('height','1440');const svgStr='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(node);const ov=new Image();ov.onload=()=>{ctx.drawImage(ov,0,0);c.toBlob(b=>b&&save(b,'png'),'image/png',1)};ov.src=URL.createObjectURL(new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'}))};const src=config.background.source;if(src){const bg=new Image();bg.crossOrigin='anonymous';bg.onload=()=>{ctx.drawImage(bg,0,0,1080,1440);drawOverlay()};bg.src=src}else drawOverlay()};
+  const filename=(ext:string)=>config.mode==='namoz'?`namoz-vaqtlari-${slug(config.mosqueName)||'masjid'}.${ext}`:`iqtibos-${slug(config.author)||'muallif'}.${ext}`;
+
+  // iOS Safari doesn't honor <a download> for blob URLs — it just navigates to/renders the blob
+  // instead of saving it. Android Chrome and desktop browsers already download correctly via the
+  // anchor technique, so only iOS is routed through the native share sheet (Save Image/Save to Files).
+  const isIOS=()=>/iP(hone|od|ad)/.test(navigator.platform)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const shareOrDownload=async(blob:Blob,fname:string)=>{
+    const nav=navigator as Navigator&{canShare?:(d:{files:File[]})=>boolean;share?:(d:{files:File[];title?:string})=>Promise<void>};
+    if(isIOS()&&nav.share){
+      const file=new File([blob],fname,{type:blob.type});
+      if(!nav.canShare||nav.canShare({files:[file]})){
+        try{await nav.share({files:[file],title:fname});return}
+        catch(e){if((e as Error).name==='AbortError')return}
+      }
+    }
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+
+  type ExportStatus='idle'|'busy'|'done'|'error';
+  const [pngStatus,setPngStatus]=useState<ExportStatus>('idle');
+  const [svgStatus,setSvgStatus]=useState<ExportStatus>('idle');
+  const flash=(setStatus:(s:ExportStatus)=>void,status:ExportStatus)=>{setStatus(status);setTimeout(()=>setStatus('idle'),1800)};
+
+  const downloadSvg=async()=>{
+    setSvgStatus('busy');
+    try{await shareOrDownload(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}),filename('svg'));flash(setSvgStatus,'done')}
+    catch{flash(setSvgStatus,'error')}
+  };
+
+  const renderPngBlob=():Promise<Blob>=>new Promise((resolve,reject)=>{
+    const c=document.createElement('canvas');c.width=1080;c.height=1440;const ctx=c.getContext('2d')!;
+    const drawOverlay=()=>{
+      const node=svgRef.current!.cloneNode(true) as SVGSVGElement;const bgImg=node.querySelector('image');if(bgImg)bgImg.remove();
+      node.setAttribute('width','1080');node.setAttribute('height','1440');
+      const svgStr='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(node);
+      const ov=new Image();
+      ov.onload=()=>{ctx.drawImage(ov,0,0);c.toBlob(b=>b?resolve(b):reject(new Error('PNG hosil qilib bo‘lmadi')),'image/png',1)};
+      ov.onerror=()=>reject(new Error('Poster tasvirini chizib bo‘lmadi'));
+      ov.src=URL.createObjectURL(new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'}));
+    };
+    const src=config.background.source;
+    if(src){
+      const bg=new Image();bg.crossOrigin='anonymous';
+      bg.onload=()=>{ctx.drawImage(bg,0,0,1080,1440);drawOverlay()};
+      bg.onerror=()=>reject(new Error('Fon rasmi yuklanmadi'));
+      bg.src=src;
+    }else drawOverlay();
+  });
+
+  const downloadPng=async()=>{
+    setPngStatus('busy');
+    try{const blob=await renderPngBlob();await shareOrDownload(blob,filename('png'));flash(setPngStatus,'done')}
+    catch{flash(setPngStatus,'error')}
+  };
   const upload=(file?:File)=>{if(!file)return;const reader=new FileReader();reader.onload=()=>update('background',{id:'upload',name:'Shaxsiy',light:false,kind:'upload',source:String(reader.result)});reader.readAsDataURL(file)};
   const [unsplashQ,setUnsplashQ]=useState('');const [unsplashR,setUnsplashR]=useState<any[]>([]);const [unsplashB,setUnsplashB]=useState(false);const unsplashT=useRef(0);
   const searchUnsplash=(q:string)=>{setUnsplashQ(q);clearTimeout(unsplashT.current);if(!q.trim()){setUnsplashR([]);return}unsplashT.current=setTimeout(async()=>{setUnsplashB(true);try{const r=await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=8&orientation=portrait`,{headers:{Authorization:`Client-ID ${import.meta.env.VITE_UNSPLASH_KEY}`}});const d=await r.json();setUnsplashR(d.results||[])}catch{}setUnsplashB(false)},400)};
@@ -71,7 +124,16 @@ const setMode=(mode:PosterMode)=>setConfig(c=>({...c,mode,title:mode==='namoz'?'
         <button className="advanced" onClick={()=>setAdvanced(!advanced)}><SlidersHorizontal size={18}/> Qo‘shimcha sozlamalar <ChevronDown className={advanced?'rotated':''} size={18}/></button>
         {advanced&&<div className="card range-card"><label>Qoplama <span>{config.overlay}%</span><input type="range" min="0" max="60" value={config.overlay} onChange={e=>update('overlay',+e.target.value)}/></label><label>Yorqinlik <span>{config.brightness}%</span><input type="range" min="60" max="130" value={config.brightness} onChange={e=>update('brightness',+e.target.value)}/></label><label>Kattalashtirish <span>{config.backgroundZoom}%</span><input type="range" min="100" max="150" value={config.backgroundZoom} onChange={e=>update('backgroundZoom',+e.target.value)}/></label></div>}
       </section>
-      <aside className="preview-area"><div className="preview-title"><div><span className="eyebrow">JONLI KO‘RINISH</span><h2>Poster tayyor</h2></div><span className="dimensions">1080 × 1440 px</span></div><div className="poster-wrap"><Poster config={config} svgRef={svgRef}/></div><div className="exports"><button className="png" onClick={downloadPng}><Download size={20}/><span>PNG yuklab olish<small>Yuqori sifat · 1080 × 1440</small></span></button><button onClick={downloadSvg}><ImagePlus size={20}/><span>SVG yuklab olish<small>Vektor format</small></span></button></div><p className="privacy">🔒 Rasmlar qurilmangizda qayta ishlanadi va hech qayerga yuborilmaydi</p></aside>
+      <aside className="preview-area"><div className="preview-title"><div><span className="eyebrow">JONLI KO‘RINISH</span><h2>Poster tayyor</h2></div><span className="dimensions">1080 × 1440 px</span></div><div className="poster-wrap"><Poster config={config} svgRef={svgRef}/></div><div className="exports">
+        <button className="png" onClick={downloadPng} disabled={pngStatus==='busy'} aria-busy={pngStatus==='busy'}>
+          {pngStatus==='busy'?<Loader2 size={20} className="spin"/>:pngStatus==='done'?<Check size={20}/>:pngStatus==='error'?<AlertTriangle size={20}/>:<Download size={20}/>}
+          <span>{pngStatus==='busy'?'Tayyorlanmoqda…':pngStatus==='done'?'Tayyor!':pngStatus==='error'?'Xatolik, qayta urining':'PNG yuklab olish'}<small>Yuqori sifat · 1080 × 1440</small></span>
+        </button>
+        <button onClick={downloadSvg} disabled={svgStatus==='busy'} aria-busy={svgStatus==='busy'}>
+          {svgStatus==='busy'?<Loader2 size={20} className="spin"/>:svgStatus==='done'?<Check size={20}/>:svgStatus==='error'?<AlertTriangle size={20}/>:<ImagePlus size={20}/>}
+          <span>{svgStatus==='busy'?'Tayyorlanmoqda…':svgStatus==='done'?'Tayyor!':svgStatus==='error'?'Xatolik, qayta urining':'SVG yuklab olish'}<small>Vektor format</small></span>
+        </button>
+      </div><p className="privacy">🔒 Rasmlar qurilmangizda qayta ishlanadi va hech qayerga yuborilmaydi</p></aside>
     </div>
   </main>
 }
